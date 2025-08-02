@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
+import { GenericHttpService } from "../../common/services/generic-http.service";
 import {
     ShoppingListCreateRequestModel,
     ShoppingListCreateResponseModel,
@@ -13,36 +14,36 @@ import {
 @Injectable({
     providedIn: "root",
 })
-export class ShoppingService {
-    private readonly apiUrl = "/api/ShoppingList";
-
-    constructor(private http: HttpClient) { }
+export class ShoppingService extends GenericHttpService<ShoppingListResponseModel> {
+    constructor(http: HttpClient) {
+        super(http, "ShoppingList");
+    }
 
     createShoppingList(request: ShoppingListCreateRequestModel): Observable<ShoppingListCreateResponseModel> {
-        return this.http.post<ShoppingListCreateResponseModel>(`${this.apiUrl}`, request);
+        return this.post<ShoppingListCreateResponseModel>(`${this.apiUrl}`, request);
     }
 
     getShoppingList(id: number): Observable<ShoppingListResponseModel> {
-        return this.http.get<ShoppingListResponseModel>(`${this.apiUrl}/${id}`);
+        return this.getById(id);
     }
 
     updateShoppingList(id: number, request: ShoppingListCreateRequestModel): Observable<ShoppingListResponseModel> {
-        return this.http.put<ShoppingListResponseModel>(`${this.apiUrl}/${id}`, request);
+        return this.update(id, request);
     }
 
     deleteShoppingList(id: number): Observable<any> {
-        return this.http.delete(`${this.apiUrl}/${id}`);
+        return this.delete(id);
     }
 
     addItem(request: ShoppingListItemCreateRequestModel): Observable<ShoppingListItemResponseModel> {
-        return this.http.post<ShoppingListItemResponseModel>(`${this.apiUrl}/item`, request);
+        return this.post<ShoppingListItemResponseModel>(`${this.apiUrl}/item`, request);
     }
 
     updateItem(id: number, request: ShoppingListItemUpdateRequestModel): Observable<ShoppingListItemResponseModel> {
-        return this.http.put<ShoppingListItemResponseModel>(`${this.apiUrl}/item/${id}`, request);
+        return this.put<ShoppingListItemResponseModel>(`${this.apiUrl}/item/${id}`, request);
     }
 
     deleteItem(id: number): Observable<any> {
-        return this.http.delete(`${this.apiUrl}/item/${id}`);
+        return this.delete<any>(`${this.apiUrl}/item/${id}`);
     }
 } 

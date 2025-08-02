@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Nom.Api.Authentication;
+using Nom.Api.Middleware;
 using Nom.Data;
 using Nom.Orch;
 using System.Linq;
@@ -127,6 +128,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors(corsPolicyName);
+
+// Add global exception handler
+app.UseGlobalExceptionHandler();
 
 app.UseAuthentication();
 app.UseAuthorization();
