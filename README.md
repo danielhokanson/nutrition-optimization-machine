@@ -21,7 +21,12 @@ NOM goes beyond generic diet advice by deeply understanding individual dietary n
   - Societal, religious, and ethical practices
   - Allergies and medical restrictions
   - Personal preferences and dislikes
-- **Privacy-First Design**: GDPR compliant architecture with robust data protection mechanisms.
+- **Privacy-First Design**: GDPR compliant architecture with robust data protection mechanisms
+- **Advanced Abstraction Patterns**: Comprehensive design patterns for maintainable, scalable code:
+  - Generic API controllers and services
+  - Enhanced event-driven architecture
+  - Centralized validation and error handling
+  - Factory patterns for dynamic service creation
 
 ### Roadmap (Upcoming Features)
 
@@ -79,6 +84,8 @@ We welcome contributions to the Nutritional Optimization Machine! To contribute:
 - Ensure privacy impact assessment for personal data handling.
 - Follow established naming conventions.
 - Document complex logic.
+- Use abstraction patterns for maintainable code.
+- Implement event-driven architecture for loose coupling.
 
 ## License
 

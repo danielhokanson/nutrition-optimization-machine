@@ -13,8 +13,9 @@ This document outlines the comprehensive conventions, patterns, and standards us
 7. [File Structure Conventions](#file-structure-conventions)
 8. [Component Architecture Patterns](#component-architecture-patterns)
 9. [Service Architecture Patterns](#service-architecture-patterns)
-10. [Security & Privacy Conventions](#security--privacy-conventions)
-11. [Forbidden Patterns](#forbidden-patterns)
+10. [Abstraction Patterns & Design Principles](#abstraction-patterns--design-principles)
+11. [Security & Privacy Conventions](#security--privacy-conventions)
+12. [Forbidden Patterns](#forbidden-patterns)
 
 ## Critical Naming Rules
 
@@ -695,6 +696,305 @@ public static class ServiceCollectionExtensions
     }
 }
 ```
+
+## Abstraction Patterns & Design Principles
+
+### Overview
+
+NOM implements comprehensive abstraction patterns to reduce code duplication, improve maintainability, and create reusable components across both frontend and backend.
+
+### Backend Abstraction Patterns
+
+#### 1. Generic API Controller Pattern
+
+**Purpose**: Eliminates repetitive CRUD operations across controllers.
+
+**Implementation**:
+```csharp
+public abstract class GenericApiController<TModel, TCreateModel, TUpdateModel> : BaseApiController
+{
+    protected readonly IGenericOrchestrationService<TModel> _service;
+    protected readonly ILogger _logger;
+
+    // Provides common CRUD operations: GetAll, GetById, Create, Update, Delete
+}
+```
+
+**Usage**:
+```csharp
+public class RecipeController : GenericApiController<RecipeResponseModel, RecipeCreateModel, RecipeUpdateModel>
+{
+    public RecipeController(IRecipeOrchestrationService service, ILogger<RecipeController> logger) 
+        : base(service, logger) { }
+}
+```
+
+#### 2. Generic Orchestration Service Pattern
+
+**Purpose**: Provides common service operations with standardized logging and error handling.
+
+**Implementation**:
+```csharp
+public abstract class GenericOrchestrationService<TModel> : IGenericOrchestrationService<TModel>
+{
+    protected readonly ILogger _logger;
+
+    // Abstract methods that must be implemented by derived classes
+    public abstract Task<List<TModel>> GetAllAsync();
+    public abstract Task<TModel?> GetByIdAsync(long id);
+    public abstract Task<TModel> CreateAsync(object model);
+    public abstract Task<TModel?> UpdateAsync(long id, object model);
+    public abstract Task<bool> DeleteAsync(long id);
+}
+```
+
+#### 3. Global Exception Handler Middleware
+
+**Purpose**: Centralized error handling with standardized error responses.
+
+**Implementation**:
+```csharp
+public class GlobalExceptionHandler
+{
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+}
+```
+
+**Registration**:
+```csharp
+app.UseGlobalExceptionHandler();
+```
+
+#### 4. Response Factory Pattern
+
+**Purpose**: Standardized API response creation.
+
+**Usage**:
+```csharp
+// Success responses
+return ResponseFactory.Success(data);
+return ResponseFactory.Created(data, "GetById", new { id = data.Id });
+
+// Error responses
+return ResponseFactory.BadRequest(validationErrors);
+return ResponseFactory.NotFound("Resource not found");
+return ResponseFactory.Error("Operation failed", ex.Message);
+```
+
+### Frontend Abstraction Patterns
+
+#### 1. Generic HTTP Service Pattern
+
+**Purpose**: Eliminates repetitive HTTP operations across services.
+
+**Implementation**:
+```typescript
+export class GenericHttpService<T> {
+  protected apiUrl: string;
+
+  constructor(protected http: HttpClient, endpoint: string) {
+    this.apiUrl = `${environment.apiUrl}/${endpoint}`;
+  }
+
+  getAll(): Observable<T[]> { /* implementation */ }
+  getById(id: number): Observable<T> { /* implementation */ }
+  create(item: Partial<T>): Observable<T> { /* implementation */ }
+  update(id: number, item: Partial<T>): Observable<T> { /* implementation */ }
+  delete(id: number): Observable<void> { /* implementation */ }
+}
+```
+
+**Usage**:
+```typescript
+@Injectable({
+  providedIn: 'root'
+})
+export class RecipeService extends GenericHttpService<RecipeModel> {
+  constructor(http: HttpClient) {
+    super(http, 'recipe');
+  }
+}
+```
+
+#### 2. Enhanced Event Bus Pattern
+
+**Purpose**: Comprehensive pub-sub system with typed events and state management.
+
+**Features**:
+- Typed event publishing and subscription
+- State management with BehaviorSubjects
+- Legacy compatibility
+- Automatic cleanup
+
+**Usage**:
+```typescript
+// Publishing events
+this.eventBus.publish('data:recipe:created', recipeData);
+this.eventBus.emitDataCreated('recipe', recipeData);
+
+// Subscribing to events
+this.eventBus.subscribeToData<RecipeModel>('data:recipe:created')
+  .subscribe(recipe => this.handleRecipeCreated(recipe));
+
+// State management
+this.eventBus.setState('currentUser', userData);
+this.eventBus.subscribeToState<UserModel>('currentUser')
+  .subscribe(user => this.handleUserChange(user));
+```
+
+#### 3. Service Factory Pattern
+
+**Purpose**: Dynamic service creation and management with caching.
+
+**Implementation**:
+```typescript
+export class ServiceFactoryService {
+  private serviceCache = new Map<string, any>();
+  private serviceRegistry: ServiceRegistry = {};
+
+  createService<T>(key: string): GenericHttpService<T> {
+    // Creates or retrieves cached service instance
+  }
+
+  registerService(key: string, config: ServiceConfig): void {
+    // Registers service configuration
+  }
+}
+```
+
+**Usage**:
+```typescript
+// Using factory
+const recipeService = this.serviceFactory.createService<RecipeModel>('recipe');
+
+// Direct creation
+const customService = this.serviceFactory.createServiceWithEndpoint<CustomModel>('custom-endpoint');
+```
+
+#### 4. Validation Service Pattern
+
+**Purpose**: Centralized validation logic with reusable validators.
+
+**Features**:
+- Common validation rules (email, password, phone, etc.)
+- Custom validator creation
+- Form control validation
+- Error message management
+
+**Usage**:
+```typescript
+// Using common validators
+const isValid = this.validationService.validateControl(control, ['required', 'email']);
+
+// Custom validators
+const customValidator = this.validationService.createValidator(
+  (control) => control.value?.length > 5 ? null : { minLength: true },
+  'Minimum length is 5 characters'
+);
+
+// Async validation
+const uniqueValidator = this.validationService.uniqueValidator(
+  (value) => this.checkUniqueValue(value),
+  'value'
+);
+```
+
+#### 5. Base Component Pattern
+
+**Purpose**: Common component functionality with lifecycle management.
+
+**Features**:
+- Automatic subscription management
+- Common event handling
+- Loading and error state management
+- Validation integration
+- Event emission helpers
+
+**Usage**:
+```typescript
+export class MyComponent extends BaseComponent {
+  constructor(
+    eventBus: EventBusService,
+    notificationService: NotificationService,
+    validationService: ValidationService
+  ) {
+    super(eventBus, notificationService, validationService);
+  }
+
+  protected onInit(): void {
+    // Custom initialization logic
+  }
+
+  protected setupEventSubscriptions(): void {
+    // Custom event subscriptions
+    this.eventBus.subscribeToData<RecipeModel>('data:recipe:changed')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(recipe => this.handleRecipeChange(recipe));
+  }
+}
+```
+
+### Design Principles
+
+#### 1. DRY (Don't Repeat Yourself)
+- Use generic services and controllers to eliminate code duplication
+- Implement common patterns in base classes
+- Create reusable validation and utility functions
+
+#### 2. Single Responsibility Principle
+- Each service/component should have one clear purpose
+- Separate concerns between orchestration, business logic, and data access
+- Use composition over inheritance where appropriate
+
+#### 3. Dependency Injection
+- All services should be injectable and testable
+- Use interfaces for loose coupling
+- Register services with appropriate lifetimes
+
+#### 4. Error Handling
+- Centralized error handling through middleware
+- Consistent error response formats
+- Proper logging and monitoring
+
+#### 5. Type Safety
+- Use TypeScript generics for type-safe operations
+- Implement interfaces for all data contracts
+- Leverage Angular's type system for better development experience
+
+#### 6. Event-Driven Architecture
+- Use pub-sub patterns for loose coupling
+- Implement typed events for better type safety
+- Provide state management capabilities
+
+### Migration Guidelines
+
+When migrating existing code to use these patterns:
+
+1. **Start with Services**: Convert existing services to extend `GenericHttpService`
+2. **Update Controllers**: Migrate controllers to use `GenericApiController` where appropriate
+3. **Implement Event Bus**: Replace direct service calls with event-driven communication
+4. **Add Validation**: Integrate the validation service for form handling
+5. **Update Components**: Extend `BaseComponent` for new components
+
+### Best Practices
+
+1. **Always use the abstraction patterns** for new code
+2. **Maintain backward compatibility** when updating existing code
+3. **Follow the established naming conventions** for all new abstractions
+4. **Document complex patterns** with clear examples
+5. **Test all abstractions** thoroughly before deployment
+6. **Use TypeScript generics** for type safety
+7. **Implement proper error handling** in all abstractions
 
 ## Security & Privacy Conventions
 
